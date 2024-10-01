@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Compare Character Interactions: {{ edition1 }} vs {{ edition2 }}</h2>
+
+<div id="graph" style="text-align: center;"></div>
+
+<!-- Include D3.js library -->
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+    var edition1 = "{{ edition1 }}";
+    var edition2 = "{{ edition2 }}";
+
+    // Data for the editions
+    var nodes = {{ nodes | tojson }};
+    var links = {{ links | tojson }};
+
+    var width = 800;
+    var height = 600;
+
+    var svg = d3.select("#graph").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    var color = d3.scaleOrdinal()
+        .domain([edition1, edition2])
+        .range(["#1f77b4", "#ff7f0e"]);
+
+    var simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(function(d) { return d.id; }).distance(150))
+        .force("charge", d3.forceManyBody().strength(-500))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Draw links
+    var link = svg.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("stroke-width", function(d) { return Math.sqrt(d.value1 + d.value2); })
+        .attr("stroke", function(d) {
+            if (d.editions.length === 2) {
+                return "#999";  // Common in both editions
+            } else if (d.editions[0] === edition1) {
+                return color(edition1);  // Unique to edition1
+            } else {
+                return color(edition2);  // Unique to edition2
+            }
+        })
+        .attr("stroke-dasharray", function(d) {
+            if (d.editions.length === 2) {
+                return "none";  // Solid line for common interactions
+            } else {
+                return "4 2";  // Dashed line for unique interactions
+            }
+        });
+
+    // Draw nodes
+    var node = svg.append("g")
+        .attr("class", "nodes")
+        .selectAll("circle")
+        .data(nodes)
+        .enter().append("circle")
+        .attr("r", 10)
+        .attr("fill", "#1f78b4")
+        .call(drag(simulation));
+
+    var labels = svg.append("g")
+        .attr("class", "labels")
+        .selectAll("text")
+        .data(nodes)
+        .enter().append("text")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.id; });
+
+    node.append("title")
+        .text(function(d) { return d.id; });
+
+    link.append("title")
+        .text(function(d) {
+            var editions = d.editions.join(', ');
+            return d.source + " ↔ " + d.target + " (" + editions + ")";
+        });
+
+    simulation.on("tick", function() {
+        link
+            .attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        node
+            .attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; });
+
+        labels
+            .attr("x", function(d) { return d.x; })
+            .attr("y", function(d) { return d.y; });
+    });
+
+    function drag(simulation) {
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        return d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended);
+    }
+
+    // Add legend
+    var legendData = [
+        { edition: edition1, color: color(edition1) },
+        { edition: edition2, color: color(edition2) },
+        { edition: "Common", color: "#999" }
+    ];
+
+    var legend = svg.selectAll(".legend")
+        .data(legendData)
+        .enter().append("g")
+        .attr("class", "legend")
+        .attr("transform", function(d, i) { return "translate(20," + (20 + i * 20) + ")"; });
+
+    legend.append("line")
+        .attr("x1", 0)
+        .attr("x2", 20)
+        .attr("stroke-width", 4)
+        .attr("stroke", function(d) { return d.color; })
+        .attr("stroke-dasharray", function(d) {
+            if (d.edition === "Common") {
+                return "none";
+            } else {
+                return "4 2";
+            }
+        });
+
+    legend.append("text")
+        .attr("x", 30)
+        .attr("y", 5)
+        .text(function(d) { return d.edition; });
+</script>
+{% endblock %}

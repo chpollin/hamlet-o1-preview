@@ -50,7 +50,9 @@ for xml_file in xml_files:
             for sp in speeches:
                 who = sp.get('who')
                 speaker_name = who.strip('#') if who else ''
-                characters_in_scene.add(speaker_name)
+                speaker_name = speaker_name.strip().upper()  # Normalize character name
+                if speaker_name:
+                    characters_in_scene.add(speaker_name)
                 # Get all the lines spoken
                 lines = sp.findall('.//tei:l', namespaces)
                 for line in lines:

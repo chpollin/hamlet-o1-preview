@@ -139,6 +139,63 @@ def view_interactions(edition_id):
         abort(404)
     return render_template('interactions.html', edition_id=edition_id, data=data, title=f"Interactions in {edition_id}")
 
+@app.route('/compare_interactions', methods=['GET', 'POST'])
+def compare_interactions():
+    if request.method == 'POST':
+        edition1 = request.form.get('edition1')
+        edition2 = request.form.get('edition2')
+        data1 = interaction_data.get(edition1)
+        data2 = interaction_data.get(edition2)
+        if not data1 or not data2:
+            abort(404)
+        
+        # Prepare merged data for visualization
+        # Merge nodes
+        nodes_dict = {}
+        for node in data1['nodes']:
+            nodes_dict[node['id']] = {'id': node['id']}
+        for node in data2['nodes']:
+            nodes_dict[node['id']] = {'id': node['id']}
+        nodes = list(nodes_dict.values())
+        
+        # Merge links
+        link_map = {}
+        for link in data1['links']:
+            key = (link['source'], link['target'])
+            link_map[key] = {
+                'source': link['source'],
+                'target': link['target'],
+                'value1': link['value'],
+                'value2': 0,
+                'editions': [edition1]
+            }
+        for link in data2['links']:
+            key = (link['source'], link['target'])
+            if key in link_map:
+                link_map[key]['value2'] = link['value']
+                link_map[key]['editions'].append(edition2)
+            else:
+                link_map[key] = {
+                    'source': link['source'],
+                    'target': link['target'],
+                    'value1': 0,
+                    'value2': link['value'],
+                    'editions': [edition2]
+                }
+        links = list(link_map.values())
+        
+        return render_template(
+            'compare_interactions.html',
+            edition1=edition1,
+            edition2=edition2,
+            nodes=nodes,
+            links=links,
+            title=f"Compare Character Interactions: {edition1} vs {edition2}"
+        )
+    else:
+        edition_list = list(interaction_data.keys())
+        return render_template('compare_interactions_select.html', editions=edition_list, title="Compare Character Interactions")
+
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
