@@ -2,6 +2,7 @@ import os
 import glob
 from lxml import etree
 import json
+from collections import defaultdict
 
 # Define the data folder containing TEI XML files
 data_folder = 'data'
@@ -9,8 +10,9 @@ data_folder = 'data'
 # Find all TEI XML files in the data folder
 xml_files = glob.glob(os.path.join(data_folder, '*.xml'))
 
-# Initialize a list to hold all the extracted information
+# Initialize data structures
 texts_data = []
+interaction_data = defaultdict(lambda: defaultdict(set))  # {edition: {character: set(other_characters)}}
 
 for xml_file in xml_files:
     # Get edition identifier from the file name
@@ -43,15 +45,17 @@ for xml_file in xml_files:
             scene_number = scene.get('n')
             # Get all speeches in the scene
             speeches = scene.findall('.//tei:sp', namespaces)
+            # Collect all characters present in the scene
+            characters_in_scene = set()
             for sp in speeches:
                 who = sp.get('who')
                 speaker_name = who.strip('#') if who else ''
+                characters_in_scene.add(speaker_name)
                 # Get all the lines spoken
                 lines = sp.findall('.//tei:l', namespaces)
                 for line in lines:
-                    # Preserve original orthography and punctuation
                     line_text = ''.join(line.itertext())
-                    line_number = line.get('n')  # Get line number if available
+                    line_number = line.get('n')
                     texts_data.append({
                         'edition': edition_id,
                         'title': title_text,
@@ -63,7 +67,14 @@ for xml_file in xml_files:
                         'line_number': line_number,
                         'text': line_text
                     })
+            # Update interactions between characters in this scene
+            for character in characters_in_scene:
+                interaction_data[edition_id][character].update(characters_in_scene - {character})
 
-# Save the extracted data to a JSON file
+# Save the extracted text data to a JSON file
 with open('texts_data.json', 'w', encoding='utf-8') as f:
     json.dump(texts_data, f, ensure_ascii=False, indent=4)
+
+# Save the interaction data to a JSON file
+with open('interaction_data.json', 'w', encoding='utf-8') as f:
+    json.dump({edition: {char: list(others) for char, others in chars.items()} for edition, chars in interaction_data.items()}, f, ensure_ascii=False, indent=4)

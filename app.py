@@ -39,9 +39,10 @@ for entry in texts_data:
         editions[edition] = []
     editions[edition].append(entry)
 
+# Update the context processor to include Annotation
 @app.context_processor
 def inject_db_session():
-    return dict(db_session=db_session)
+    return dict(db_session=db_session, Annotation=Annotation)
 
 @app.route('/')
 def index():
@@ -122,6 +123,22 @@ def search():
         return render_template('search.html', query=query, results=results, editions=editions.keys(), title=f"Search Results for '{query}'")
     else:
         return render_template('search_form.html', editions=editions.keys(), title="Advanced Search")
+
+with open('interaction_data.json', 'r', encoding='utf-8') as f:
+    interaction_data = json.load(f)
+
+@app.route('/interactions')
+def interactions():
+    # List all available editions
+    edition_list = list(interaction_data.keys())
+    return render_template('interactions_select.html', editions=edition_list, title="Character Interactions")
+
+@app.route('/interactions/<edition_id>')
+def view_interactions(edition_id):
+    interactions = interaction_data.get(edition_id)
+    if not interactions:
+        abort(404)
+    return render_template('interactions.html', edition_id=edition_id, interactions=interactions, title=f"Interactions in {edition_id}")
 
 @app.route('/annotate', methods=['POST'])
 def annotate():
