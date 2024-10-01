@@ -10,9 +10,14 @@ from flask import Flask
 from whitenoise import WhiteNoise
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dimHamlet!74916')  # Ensure you're using environment variables
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
-DATABASE_URL = os.environ.get('DATABASE_URL')  # Read from environment variable
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+# Fix the database URL scheme if necessary
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Set up the database for annotations
 engine = create_engine(DATABASE_URL)
