@@ -1,10 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 import json
+import os
+from collections import defaultdict, OrderedDict
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from collections import OrderedDict
-import os
+from sqlalchemy.orm import declarative_base
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
@@ -27,9 +27,31 @@ class Annotation(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# Load the data from the JSON file
+# Load the data from the JSON files
 with open('texts_data.json', 'r', encoding='utf-8') as f:
     texts_data = json.load(f)
+
+with open('interaction_data.json', 'r', encoding='utf-8') as f:
+    interaction_data_raw = json.load(f)
+
+# Process the interaction data into a suitable format
+interaction_data = {}
+for edition, pairs in interaction_data_raw.items():
+    interactions = []
+    node_set = set()
+    node_degree = defaultdict(int)
+    for pair_str, count in pairs.items():
+        character1, character2 = pair_str.split('-')
+        node_set.update([character1, character2])
+        interactions.append({
+            'source': character1,
+            'target': character2,
+            'value': count  # Edge weight
+        })
+        node_degree[character1] += count
+        node_degree[character2] += count
+    nodes = [{'id': character, 'degree': node_degree[character]} for character in node_set]
+    interaction_data[edition] = {'nodes': nodes, 'links': interactions}
 
 # Organize the data by edition
 editions = {}
@@ -104,6 +126,19 @@ def compare_editions():
     else:
         return render_template('compare_select.html', editions=editions, title="Compare Editions")
 
+@app.route('/interactions')
+def interactions():
+    # List all available editions
+    edition_list = list(interaction_data.keys())
+    return render_template('interactions_select.html', editions=edition_list, title="Character Interactions")
+
+@app.route('/interactions/<edition_id>')
+def view_interactions(edition_id):
+    data = interaction_data.get(edition_id)
+    if not data:
+        abort(404)
+    return render_template('interactions.html', edition_id=edition_id, data=data, title=f"Interactions in {edition_id}")
+
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
@@ -123,22 +158,6 @@ def search():
         return render_template('search.html', query=query, results=results, editions=editions.keys(), title=f"Search Results for '{query}'")
     else:
         return render_template('search_form.html', editions=editions.keys(), title="Advanced Search")
-
-with open('interaction_data.json', 'r', encoding='utf-8') as f:
-    interaction_data = json.load(f)
-
-@app.route('/interactions')
-def interactions():
-    # List all available editions
-    edition_list = list(interaction_data.keys())
-    return render_template('interactions_select.html', editions=edition_list, title="Character Interactions")
-
-@app.route('/interactions/<edition_id>')
-def view_interactions(edition_id):
-    interactions = interaction_data.get(edition_id)
-    if not interactions:
-        abort(404)
-    return render_template('interactions.html', edition_id=edition_id, interactions=interactions, title=f"Interactions in {edition_id}")
 
 @app.route('/annotate', methods=['POST'])
 def annotate():

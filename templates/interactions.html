@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="mt-4">Character Interactions in {{ edition_id }}</h2>
+
+<!-- Filter controls -->
+<div class="mb-3">
+    <label for="min-interactions">Minimum Interactions:</label>
+    <input type="range" id="min-interactions" name="min-interactions" min="1" max="10" value="1">
+    <span id="min-interactions-value">1</span>
+</div>
+
 <div id="graph"></div>
 
 <!-- Include D3.js library -->
@@ -8,86 +16,102 @@
 
 <script>
     // Prepare the data
-    var interactions = {{ interactions | tojson }};
-    
-    // Convert interactions to nodes and links
-    var nodes = [];
-    var links = [];
-    var nodeSet = new Set();
-    
-    for (var character in interactions) {
-        nodeSet.add(character);
-        interactions[character].forEach(function(other) {
-            nodeSet.add(other);
-            links.push({ source: character, target: other });
-        });
-    }
-    
-    nodes = Array.from(nodeSet).map(function(name) {
-        return { id: name };
-    });
-    
+    var data = {{ data | tojson }};
+    var allNodes = data.nodes;
+    var allLinks = data.links;
+
     // Set up the SVG canvas dimensions
     var width = 800;
     var height = 600;
-    
+
     var svg = d3.select("#graph").append("svg")
         .attr("width", width)
-        .attr("height", height);
-    
-    // Create the simulation
-    var simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(function(d) { return d.id; }).distance(100))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("center", d3.forceCenter(width / 2, height / 2));
-    
-    // Draw the links (edges)
-    var link = svg.append("g")
-        .attr("class", "links")
-        .selectAll("line")
-        .data(links)
-        .enter().append("line")
-        .attr("stroke-width", 1.5)
-        .attr("stroke", "#999");
-    
-    // Draw the nodes
-    var node = svg.append("g")
-        .attr("class", "nodes")
-        .selectAll("circle")
-        .data(nodes)
-        .enter().append("circle")
-        .attr("r", 10)
-        .attr("fill", "#1f78b4")
-        .call(drag(simulation));
-    
-    // Add labels to the nodes
-    var labels = svg.append("g")
-        .attr("class", "labels")
-        .selectAll("text")
-        .data(nodes)
-        .enter().append("text")
-        .attr("dx", 12)
-        .attr("dy", ".35em")
-        .text(function(d) { return d.id; });
-    
-    // Update positions on each simulation tick
-    simulation.on("tick", function() {
-        link
-            .attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-    
-        node
-            .attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; });
-    
-        labels
-            .attr("x", function(d) { return d.x; })
-            .attr("y", function(d) { return d.y; });
-    });
-    
-    // Drag functionality
+        .attr("height", height)
+        .call(d3.zoom().on("zoom", function (event) {
+            svg.attr("transform", event.transform);
+        }))
+        .append("g");
+
+    // Define arrow markers for graph edges (optional)
+    // ...
+
+    // Define color scale
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Function to update the graph based on the minimum interaction filter
+    function updateGraph(minInteractions) {
+        var links = allLinks.filter(function(d) { return d.value >= minInteractions; });
+        var nodesSet = new Set();
+        links.forEach(function(link) {
+            nodesSet.add(link.source);
+            nodesSet.add(link.target);
+        });
+        var nodes = allNodes.filter(function(d) { return nodesSet.has(d.id); });
+
+        // Clear previous elements
+        svg.selectAll("*").remove();
+
+        // Create simulation with filtered data
+        var simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(function(d) { return d.id; }).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        // Draw links
+        var link = svg.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .attr("stroke-width", function(d) { return Math.sqrt(d.value); })
+            .attr("stroke", "#999");
+
+        // Draw nodes
+        var node = svg.append("g")
+            .attr("class", "nodes")
+            .selectAll("circle")
+            .data(nodes)
+            .enter().append("circle")
+            .attr("r", function(d) { return 5 + Math.sqrt(d.degree); })
+            .attr("fill", function(d) { return color(d.id); })
+            .call(drag(simulation));
+
+        // Add labels
+        var labels = svg.append("g")
+            .attr("class", "labels")
+            .selectAll("text")
+            .data(nodes)
+            .enter().append("text")
+            .attr("dx", 12)
+            .attr("dy", ".35em")
+            .text(function(d) { return d.id; });
+
+        // Tooltips
+        node.append("title")
+            .text(function(d) { return d.id + " (Degree: " + d.degree + ")"; });
+
+        link.append("title")
+            .text(function(d) { return d.source + " ↔ " + d.target + " (" + d.value + " interactions)"; });
+
+        // Simulation tick
+        simulation.on("tick", function() {
+            link
+                .attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+
+            node
+                .attr("cx", function(d) { return d.x; })
+                .attr("cy", function(d) { return d.y; });
+
+            labels
+                .attr("x", function(d) { return d.x; })
+                .attr("y", function(d) { return d.y; });
+        });
+    }
+
+    // Drag functions
     function drag(simulation) {
         function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -111,5 +135,15 @@
             .on("drag", dragged)
             .on("end", dragended);
     }
+
+    // Initial graph rendering
+    updateGraph(1);
+
+    // Add event listener to the slider
+    d3.select("#min-interactions").on("input", function() {
+        var minInteractions = +this.value;
+        d3.select("#min-interactions-value").text(minInteractions);
+        updateGraph(minInteractions);
+    });
 </script>
 {% endblock %}

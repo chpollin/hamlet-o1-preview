@@ -12,7 +12,7 @@ xml_files = glob.glob(os.path.join(data_folder, '*.xml'))
 
 # Initialize data structures
 texts_data = []
-interaction_data = defaultdict(lambda: defaultdict(set))  # {edition: {character: set(other_characters)}}
+interaction_counts = defaultdict(lambda: defaultdict(int))  # {edition: {character_pair: count}}
 
 for xml_file in xml_files:
     # Get edition identifier from the file name
@@ -67,14 +67,25 @@ for xml_file in xml_files:
                         'line_number': line_number,
                         'text': line_text
                     })
-            # Update interactions between characters in this scene
+            # Update interaction counts between characters in this scene
             for character in characters_in_scene:
-                interaction_data[edition_id][character].update(characters_in_scene - {character})
+                for other in characters_in_scene:
+                    if other != character:
+                        # Create a sorted tuple to avoid duplicate pairs
+                        pair = tuple(sorted([character, other]))
+                        interaction_counts[edition_id][pair] += 1
 
 # Save the extracted text data to a JSON file
 with open('texts_data.json', 'w', encoding='utf-8') as f:
     json.dump(texts_data, f, ensure_ascii=False, indent=4)
 
-# Save the interaction data to a JSON file
+# Save the interaction counts to a JSON file
 with open('interaction_data.json', 'w', encoding='utf-8') as f:
-    json.dump({edition: {char: list(others) for char, others in chars.items()} for edition, chars in interaction_data.items()}, f, ensure_ascii=False, indent=4)
+    interaction_data_output = {}
+    for edition, counts in interaction_counts.items():
+        edition_data = {}
+        for pair, count in counts.items():
+            pair_key = f"{pair[0]}-{pair[1]}"
+            edition_data[pair_key] = count
+        interaction_data_output[edition] = edition_data
+    json.dump(interaction_data_output, f, ensure_ascii=False, indent=4)
