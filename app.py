@@ -2,21 +2,19 @@ from flask import Flask, render_template, request, redirect, url_for, flash, abo
 import json
 import os
 from collections import defaultdict, OrderedDict, Counter
-from sqlalchemy import create_engine, Column, Integer, String, Text
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Text, Sequence
+from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import inspect
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy import inspect, text
 import difflib  # For textual variants visualization
 from flask import Flask
 from whitenoise import WhiteNoise
 
-
 def init_db():
     inspector = inspect(engine)
     
-    # Check if the table exists
     if not inspector.has_table("annotations"):
-        # If the table doesn't exist, try to drop the sequence if it exists
         with engine.connect() as connection:
             try:
                 connection.execute(text("DROP SEQUENCE IF EXISTS annotations_id_seq;"))
@@ -24,7 +22,6 @@ def init_db():
             except ProgrammingError:
                 connection.rollback()
         
-        # Now create all tables
         Base.metadata.create_all(bind=engine)
         print("Database tables created.")
     else:
@@ -46,7 +43,6 @@ db_session = scoped_session(sessionmaker(bind=engine))
 
 Base = declarative_base()
 
-# Define the Annotation model
 class Annotation(Base):
     __tablename__ = 'annotations'
     id = Column(Integer, Sequence('annotations_id_seq'), primary_key=True)
