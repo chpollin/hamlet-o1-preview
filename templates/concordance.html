@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Concordance for "{{ keyword }}"</h2>
+{% if results %}
+<p><a href="{{ url_for('concordance') }}">New Search</a></p>
+<div class="list-group mt-3">
+    {% for entry in results %}
+    <div class="list-group-item">
+        <p><strong>{{ entry.edition }} - {{ entry.speaker }} (Act {{ entry.act }}, Scene {{ entry.scene }})</strong></p>
+        <p>{{ entry.context | safe }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No results found.</p>
+<p><a href="{{ url_for('concordance') }}">Try again</a></p>
+{% endif %}
+{% endblock %}

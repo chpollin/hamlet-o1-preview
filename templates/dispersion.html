@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Lexical Dispersion of "{{ keyword }}" in {{ edition }}</h2>
+<div id="dispersionPlot"></div>
+
+<!-- Include Plotly.js library -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<script>
+    var positions = {{ positions | tojson }};
+    var totalWords = {{ total_words }};
+    var data = [{
+        x: positions,
+        y: Array(positions.length).fill(1),
+        mode: 'markers',
+        type: 'scatter',
+        marker: { symbol: 'line-ns-open', size: 10 },
+        showlegend: false,
+        hoverinfo: 'x',
+    }];
+    var layout = {
+        title: '',
+        xaxis: {
+            title: 'Word Position in Text',
+            range: [0, totalWords]
+        },
+        yaxis: {
+            visible: false
+        },
+        height: 200,
+        margin: { t: 20 }
+    };
+    Plotly.newPlot('dispersionPlot', data, layout);
+</script>
+{% endblock %}

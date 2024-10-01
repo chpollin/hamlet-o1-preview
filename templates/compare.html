@@ -9,7 +9,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for e1, e2 in aligned_data %}
+        {% for e1, e2, diff in aligned_data %}
         <tr>
             <td>
                 {% if e1 %}
@@ -26,6 +26,13 @@
                 {% endif %}
             </td>
         </tr>
+        {% if diff %}
+        <tr>
+            <td colspan="2">
+                {{ diff | safe }}
+            </td>
+        </tr>
+        {% endif %}
         {% endfor %}
     </tbody>
 </table>

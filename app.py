@@ -1,16 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 import json
 import os
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, Counter
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm import declarative_base
+import difflib  # For textual variants visualization
+from flask import Flask
+from whitenoise import WhiteNoise
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a secure key
+app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
+
+DATABASE_URL = os.environ.get('DATABASE_URL')  # Read from environment variable
 
 # Set up the database for annotations
-engine = create_engine('sqlite:///annotations.db')
+engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(bind=engine))
 Base = declarative_base()
 
@@ -94,6 +99,7 @@ def view_edition(edition_id):
         title=f"Edition {edition_id}"
     )
 
+# Updated compare_editions route with textual variants visualization
 @app.route('/compare', methods=['GET', 'POST'])
 def compare_editions():
     if request.method == 'POST':
@@ -120,7 +126,14 @@ def compare_editions():
         for key in all_keys:
             e1 = data1_organized.get(key)
             e2 = data2_organized.get(key)
-            aligned_data.append((e1, e2))
+            diff = None
+            if e1 and e2:
+                diff = difflib.HtmlDiff().make_table(
+                    [e1['text']], [e2['text']],
+                    fromdesc=edition1, todesc=edition2,
+                    context=True, numlines=0
+                )
+            aligned_data.append((e1, e2, diff))
         
         return render_template('compare.html', edition1=edition1, edition2=edition2, aligned_data=aligned_data, title="Compare Editions")
     else:
@@ -195,6 +208,103 @@ def compare_interactions():
     else:
         edition_list = list(interaction_data.keys())
         return render_template('compare_interactions_select.html', editions=edition_list, title="Compare Character Interactions")
+
+# New route for Word Frequency Analysis
+@app.route('/word_frequency', methods=['GET', 'POST'])
+def word_frequency():
+    if request.method == 'POST':
+        edition = request.form.get('edition')
+        num_words = int(request.form.get('num_words', 20))
+        # Get text data for the selected edition
+        data = editions.get(edition)
+        if not data:
+            abort(404)
+        # Concatenate all text entries
+        full_text = ' '.join(entry['text'] for entry in data)
+        # Tokenize and count words
+        words = [word.lower() for word in full_text.split()]
+        word_counts = Counter(words)
+        most_common = word_counts.most_common(num_words)
+        # Prepare data for visualization
+        labels, values = zip(*most_common)
+        return render_template(
+            'word_frequency.html',
+            edition=edition,
+            labels=labels,
+            values=values,
+            num_words=num_words,
+            title=f"Word Frequency in {edition}"
+        )
+    else:
+        return render_template('word_frequency_select.html', editions=editions.keys(), title="Word Frequency Analysis")
+
+# New route for Concordance (Keyword in Context)
+@app.route('/concordance', methods=['GET', 'POST'])
+def concordance():
+    if request.method == 'POST':
+        keyword = request.form.get('keyword', '').lower()
+        edition = request.form.get('edition')
+        window_size = int(request.form.get('window_size', 5))
+        results = []
+        data = editions.get(edition) if edition else texts_data
+        for entry in data:
+            text = entry['text']
+            words = text.split()
+            for i, word in enumerate(words):
+                if keyword == word.lower():
+                    start = max(i - window_size, 0)
+                    end = min(i + window_size + 1, len(words))
+                    context_words = words[start:end]
+                    # Highlight the keyword
+                    context_words[i - start] = f"<strong>{context_words[i - start]}</strong>"
+                    context = ' '.join(context_words)
+                    results.append({
+                        'edition': entry['edition'],
+                        'speaker': entry['speaker'],
+                        'act': entry['act'],
+                        'scene': entry['scene'],
+                        'context': context,
+                        'keyword': keyword
+                    })
+        return render_template(
+            'concordance.html',
+            keyword=keyword,
+            results=results,
+            editions=editions.keys(),
+            title=f"Concordance for '{keyword}'"
+        )
+    else:
+        return render_template('concordance_form.html', editions=editions.keys(), title="Concordance Search")
+
+# New route for Lexical Dispersion Plot
+@app.route('/dispersion', methods=['GET', 'POST'])
+def dispersion():
+    if request.method == 'POST':
+        keyword = request.form.get('keyword', '').lower()
+        edition = request.form.get('edition')
+        data = editions.get(edition)
+        if not data:
+            abort(404)
+        # Prepare data for dispersion plot
+        word_positions = []
+        total_words = 0
+        for entry in data:
+            text = entry['text']
+            words = text.split()
+            for word in words:
+                if word.lower() == keyword:
+                    word_positions.append(total_words)
+                total_words += 1
+        return render_template(
+            'dispersion.html',
+            keyword=keyword,
+            positions=word_positions,
+            total_words=total_words,
+            edition=edition,
+            title=f"Lexical Dispersion of '{keyword}' in {edition}"
+        )
+    else:
+        return render_template('dispersion_form.html', editions=editions.keys(), title="Lexical Dispersion Plot")
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():

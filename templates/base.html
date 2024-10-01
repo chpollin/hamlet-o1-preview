@@ -17,6 +17,9 @@
                     <a href="{{ url_for('compare_editions') }}" class="text-white mr-3">Compare Editions</a>
                     <a href="{{ url_for('interactions') }}" class="text-white mr-3">Character Interactions</a>
                     <a href="{{ url_for('compare_interactions') }}" class="text-white mr-3">Compare Interactions</a>
+                    <a href="{{ url_for('word_frequency') }}" class="text-white mr-3">Word Frequency</a>
+                    <a href="{{ url_for('concordance') }}" class="text-white mr-3">Concordance</a>
+                    <a href="{{ url_for('dispersion') }}" class="text-white mr-3">Lexical Dispersion</a>
                 </div>
                 <form action="{{ url_for('search') }}" method="get" class="form-inline">
                     <input class="form-control mr-sm-2" type="search" placeholder="Search" name="q" aria-label="Search">
