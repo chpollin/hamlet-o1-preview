@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>{{ title if title else "Philological Analysis of Shakespeare's Texts" }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Include Bootstrap CSS -->
@@ -20,6 +21,7 @@
                     <a href="{{ url_for('word_frequency') }}" class="text-white mr-3">Word Frequency</a>
                     <a href="{{ url_for('concordance') }}" class="text-white mr-3">Concordance</a>
                     <a href="{{ url_for('dispersion') }}" class="text-white mr-3">Lexical Dispersion</a>
+                    <a href="{{ url_for('compare_word_frequencies') }}" class="text-white mr-3">Compare Word Frequencies</a>
                 </div>
                 <form action="{{ url_for('search') }}" method="get" class="form-inline">
                     <input class="form-control mr-sm-2" type="search" placeholder="Search" name="q" aria-label="Search">

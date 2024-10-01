@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Word Frequencies for "{{ words | join(', ') }}" Across Editions</h2>
+<canvas id="wordFrequenciesChart"></canvas>
+
+<!-- Include Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    var ctx = document.getElementById('wordFrequenciesChart').getContext('2d');
+    var labels = {{ labels | tojson }};
+    var datasets = [];
+    var colors = [
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(201, 203, 207, 0.6)',
+        'rgba(255, 205, 86, 0.6)'
+    ];
+    {% for i in range(datasets | length) %}
+    datasets.push({
+        label: '{{ datasets[i].label }}',
+        data: {{ datasets[i].data }},
+        backgroundColor: colors[{{ i }} % colors.length]
+    });
+    {% endfor %}
+    var chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Editions'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Frequency'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                title: {
+                    display: false
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

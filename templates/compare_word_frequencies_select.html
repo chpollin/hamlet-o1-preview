@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Compare Word Frequencies Across Editions</h2>
+<form method="post" class="mt-3">
+    <div class="form-group">
+        <label for="words">Enter Words to Compare (comma-separated):</label>
+        <input type="text" name="words" id="words" class="form-control" placeholder="e.g., love, death, king" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Compare</button>
+</form>
+{% endblock %}

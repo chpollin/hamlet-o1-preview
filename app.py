@@ -149,6 +149,40 @@ def view_edition(edition_id):
         title=f"Edition {edition_id}"
     )
 
+@app.route('/compare_word_frequencies', methods=['GET', 'POST'])
+def compare_word_frequencies():
+    if request.method == 'POST':
+        words = request.form.get('words', '').lower().split(',')
+        words = [word.strip() for word in words if word.strip()]
+        if not words:
+            flash('Please enter at least one word to compare.', 'warning')
+            return redirect(url_for('compare_word_frequencies'))
+        
+        # Prepare data
+        edition_word_counts = {}
+        for edition_id, data in editions.items():
+            full_text = ' '.join(entry['text'] for entry in data)
+            word_list = [word.lower() for word in full_text.split()]
+            word_counts = Counter(word_list)
+            edition_word_counts[edition_id] = word_counts
+        
+        # Organize data for visualization
+        labels = list(editions.keys())
+        datasets = []
+        for word in words:
+            data = [edition_word_counts[edition_id].get(word, 0) for edition_id in labels]
+            datasets.append({'label': word, 'data': data})
+        
+        return render_template(
+            'compare_word_frequencies.html',
+            labels=labels,
+            datasets=datasets,
+            words=words,
+            title="Compare Word Frequencies Across Editions"
+        )
+    else:
+        return render_template('compare_word_frequencies_select.html', title="Compare Word Frequencies")
+
 # Updated compare_editions route with textual variants visualization
 @app.route('/compare', methods=['GET', 'POST'])
 def compare_editions():
