@@ -13,10 +13,22 @@ from whitenoise import WhiteNoise
 
 def init_db():
     inspector = inspect(engine)
+    
+    # Check if the table exists
     if not inspector.has_table("annotations"):
+        # If the table doesn't exist, try to drop the sequence if it exists
+        with engine.connect() as connection:
+            try:
+                connection.execute(text("DROP SEQUENCE IF EXISTS annotations_id_seq;"))
+                connection.commit()
+            except ProgrammingError:
+                connection.rollback()
+        
+        # Now create all tables
         Base.metadata.create_all(bind=engine)
+        print("Database tables created.")
     else:
-        print("Table already exists.")
+        print("Tables already exist.")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dimHamlet!74916')  # Ensure you're using environment variables
@@ -37,7 +49,7 @@ Base = declarative_base()
 # Define the Annotation model
 class Annotation(Base):
     __tablename__ = 'annotations'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, Sequence('annotations_id_seq'), primary_key=True)
     edition = Column(String(100))
     act = Column(String(10))
     scene = Column(String(10))
@@ -48,7 +60,10 @@ class Annotation(Base):
 Base.metadata.create_all(bind=engine)
 
 # Initialize the database
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"An error occurred during database initialization: {e}")
 
 # Load the data from the JSON files
 with open('texts_data.json', 'r', encoding='utf-8') as f:
