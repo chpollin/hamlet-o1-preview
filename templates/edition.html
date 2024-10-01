@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4" id="top">Edition: {{ edition_id }}</h2>
+
+<div class="row">
+    <!-- Sidebar Navigation -->
+    <nav class="col-md-3">
+        <h5>Navigate</h5>
+        <ul class="list-group">
+            {% for act_num, scenes in acts.items() %}
+            <li class="list-group-item">
+                <a href="#act-{{ act_num }}">Act {{ act_num }}</a>
+                <ul class="list-unstyled ml-3">
+                    {% for scene_num in scenes.keys() %}
+                    <li>
+                        <a href="#act-{{ act_num }}-scene-{{ scene_num }}">Scene {{ scene_num }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="col-md-9">
+        <!-- Toggle Spelling Button -->
+        <!-- Uncomment if you have modernized text available
+        <button id="toggle-spelling" class="btn btn-sm btn-primary mb-3">Toggle Spelling</button>
+        -->
+
+        {% for act_num, scenes in acts.items() %}
+        <section id="act-{{ act_num }}">
+            <h3>Act {{ act_num }}</h3>
+            {% for scene_num, entries in scenes.items() %}
+            <article id="act-{{ act_num }}-scene-{{ scene_num }}" class="mt-4">
+                <h4>Scene {{ scene_num }}</h4>
+                {% for entry in entries %}
+                <div class="speech mb-3">
+                    <p><strong>{{ entry.speaker }}:</strong></p>
+                    <p class="speech-text">
+                        {{ entry.text }}
+                    </p>
+                    <!-- Display annotations if available -->
+                    {% set annotations = db_session.query(Annotation).filter_by(
+                        edition=edition_id,
+                        act=entry.act,
+                        scene=entry.scene,
+                        speaker=entry.speaker,
+                        line_number=entry.line_number
+                    ).all() %}
+                    {% if annotations %}
+                    <div class="mt-2">
+                        <h6>Annotations:</h6>
+                        {% for annotation in annotations %}
+                        <p>{{ annotation.text }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <!-- Annotation Form -->
+                    <form action="{{ url_for('annotate') }}" method="post" class="mt-2">
+                        <input type="hidden" name="edition" value="{{ edition_id }}">
+                        <input type="hidden" name="act" value="{{ entry.act }}">
+                        <input type="hidden" name="scene" value="{{ entry.scene }}">
+                        <input type="hidden" name="speaker" value="{{ entry.speaker }}">
+                        <input type="hidden" name="line_number" value="{{ entry.line_number }}">
+                        <div class="form-group">
+                            <textarea name="annotation_text" class="form-control" placeholder="Add annotation..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-secondary">Add Annotation</button>
+                    </form>
+                </div>
+                {% endfor %}
+                <p><a href="#top">Back to Top</a></p>
+            </article>
+            {% endfor %}
+        </section>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Include JavaScript to handle the spelling toggle -->
+<!-- Uncomment if you have modernized text available
+<script>
+    document.getElementById('toggle-spelling').addEventListener('click', function() {
+        var speechTexts = document.querySelectorAll('.speech-text');
+        speechTexts.forEach(function(p) {
+            p.classList.toggle('d-none');
+        });
+    });
+</script>
+-->
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Comparing Editions: {{ edition1 }} and {{ edition2 }}</h2>
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th>{{ edition1 }}</th>
+            <th>{{ edition2 }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e1, e2 in aligned_data %}
+        <tr>
+            <td>
+                {% if e1 %}
+                <p><strong>{{ e1.speaker }}:</strong> {{ e1.text }}</p>
+                {% else %}
+                <p class="text-muted">No corresponding line.</p>
+                {% endif %}
+            </td>
+            <td>
+                {% if e2 %}
+                <p><strong>{{ e2.speaker }}:</strong> {{ e2.text }}</p>
+                {% else %}
+                <p class="text-muted">No corresponding line.</p>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

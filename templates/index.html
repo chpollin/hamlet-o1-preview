@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mt-4">Available Editions</h2>
+<ul class="list-group mt-3">
+    {% for edition_id in editions %}
+    <li class="list-group-item">
+        <a href="{{ url_for('view_edition', edition_id=edition_id) }}">{{ edition_id }}</a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
