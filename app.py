@@ -5,7 +5,7 @@ from collections import defaultdict, OrderedDict, Counter
 from sqlalchemy import create_engine, Column, Integer, String, Text, Sequence
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError, IntegrityError
 from sqlalchemy import inspect, text
 import difflib  # For textual variants visualization
 from flask import Flask
@@ -17,13 +17,20 @@ def init_db():
     if not inspector.has_table("annotations"):
         with engine.connect() as connection:
             try:
-                connection.execute(text("DROP SEQUENCE IF EXISTS annotations_id_seq;"))
-                connection.commit()
-            except ProgrammingError:
+                # Check if the sequence exists
+                connection.execute(text("SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'annotations_id_seq');"))
+                seq_exists = connection.fetchone()[0]
+                
+                if seq_exists:
+                    # If sequence exists, drop it
+                    connection.execute(text("DROP SEQUENCE annotations_id_seq;"))
+                
+                # Create the table (this will also create the sequence)
+                Base.metadata.create_all(bind=engine)
+                print("Database tables and sequences created.")
+            except (ProgrammingError, IntegrityError) as e:
+                print(f"An error occurred during database initialization: {e}")
                 connection.rollback()
-        
-        Base.metadata.create_all(bind=engine)
-        print("Database tables created.")
     else:
         print("Tables already exist.")
 
@@ -37,6 +44,12 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Add client_encoding parameter
+if '?' in DATABASE_URL:
+    DATABASE_URL += "&client_encoding=utf8"
+else:
+    DATABASE_URL += "?client_encoding=utf8"
+
 # Set up the database for annotations
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(bind=engine))
@@ -45,7 +58,7 @@ Base = declarative_base()
 
 class Annotation(Base):
     __tablename__ = 'annotations'
-    id = Column(Integer, Sequence('annotations_id_seq'), primary_key=True)
+    id = Column(Integer, primary_key=True)  # PostgreSQL will use SERIAL by default
     edition = Column(String(100))
     act = Column(String(10))
     scene = Column(String(10))
@@ -61,12 +74,20 @@ try:
 except Exception as e:
     print(f"An error occurred during database initialization: {e}")
 
-# Load the data from the JSON files
-with open('texts_data.json', 'r', encoding='utf-8') as f:
-    texts_data = json.load(f)
+try:
+    with open('texts_data.json', 'r', encoding='utf-8') as f:
+        texts_data = json.load(f)
 
-with open('interaction_data.json', 'r', encoding='utf-8') as f:
-    interaction_data_raw = json.load(f)
+    with open('interaction_data.json', 'r', encoding='utf-8') as f:
+        interaction_data_raw = json.load(f)
+except FileNotFoundError as e:
+    print(f"Error: JSON file not found. {e}")
+    texts_data = []
+    interaction_data_raw = {}
+except json.JSONDecodeError as e:
+    print(f"Error: Invalid JSON in data files. {e}")
+    texts_data = []
+    interaction_data_raw = {}
 
 # Process the interaction data into a suitable format
 interaction_data = {}
