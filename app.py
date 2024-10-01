@@ -5,9 +5,18 @@ from collections import defaultdict, OrderedDict, Counter
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import inspect
 import difflib  # For textual variants visualization
 from flask import Flask
 from whitenoise import WhiteNoise
+
+
+def init_db():
+    inspector = inspect(engine)
+    if not inspector.has_table("annotations"):
+        Base.metadata.create_all(bind=engine)
+    else:
+        print("Table already exists.")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dimHamlet!74916')  # Ensure you're using environment variables
@@ -22,6 +31,7 @@ if DATABASE_URL.startswith("postgres://"):
 # Set up the database for annotations
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(bind=engine))
+
 Base = declarative_base()
 
 # Define the Annotation model
@@ -36,6 +46,9 @@ class Annotation(Base):
     text = Column(Text)
 
 Base.metadata.create_all(bind=engine)
+
+# Initialize the database
+init_db()
 
 # Load the data from the JSON files
 with open('texts_data.json', 'r', encoding='utf-8') as f:
